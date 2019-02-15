@@ -32,7 +32,7 @@ const {Storage} = require('@google-cloud/storage');
 const multer = Multer({
   storage: Multer.memoryStorage(),
   limits: {
-    fileSize: 5 * 1024 * 1024 // no larger than 5mb, change as needed
+    fileSize: 5 * 2048 * 2048 // no larger than 5mb, change as needed
   }
 });
 
@@ -235,6 +235,129 @@ app.get('/songs/:songId', (req, res) => {
 
 // END Get song by Id
 //***************************************************************************
+
+//***************************************************************************
+// START List all songs
+//***************************************************************************
+
+function getSongs(req) {
+  // first query to get song info to displey
+  var q = datastore.createQuery('song');
+  // second query to get total count of search results available
+  var p = datastore.createQuery('song');
+  const results = {};
+//  if(Object.keys(req.query).includes("cursor")){
+//    q = q.start(req.query.cursor);
+//  }
+  return datastore.runQuery(q).then ( (entities) => {
+    results.items = entities[0].map(fromDatastore);
+//    if (entities[1].moreResults !== Datastore.NO_MORE_RESULTS) {
+//      results.next = (BASEURL + "/songs?cursor=" + entities[1].endCursor);
+//    }
+  }).then( () => {
+    return datastore.runQuery(p);
+  }).then( (entities) => {
+    results.totalSearchResults = entities[0].length;
+    console.log("after query entities");
+    console.log(entities);
+    return results;
+  });
+}
+
+app.get('/songs', (req, res) => {
+  const songs = getSongs(req)
+    .then((songs) => {
+//      const accepts = req.accepts(['application/json']);
+//      if(!accepts) {
+//        res
+//          .status(406)
+//          .send({ error:"Not Acceptable - must accept application/json"});
+//      }
+//      else {
+        console.log(songs);
+        res
+          .status(200)
+          .json(songs);
+//      }
+    });
+});
+
+// END List all songs
+//***************************************************************************
+
+
+//***************************************************************************
+// START Post new playlist
+//***************************************************************************
+
+async function listSearch(listId) {
+  const listKey = datastore.key(['list', parseInt(listId,10)]);
+  const query = datastore.createQuery('list').filter('__key__', '=', listKey);
+  return datastore.runQuery(query);
+}
+
+async function validateList(listId) {
+  const listKey = datastore.key(['list', parseInt(listId,10)]);
+  return listSearch(listId).then (results => {
+    if (results[0].length > 0) {
+      console.log("listSearch results len > 0");
+      const query = datastore.createQuery('list').filter('__key__', '=', listKey);
+      return datastore.runQuery(query);
+    }
+    else {
+      console.log("listSearch results len not > 0");
+      var e = new Error;
+      e.name = 'InvalidListIdError';
+      throw e;
+    };
+  });
+}
+// takes: list json object with name
+//
+// returns: a list key with the newly assigned id
+function postList(list) {
+  const key = datastore.key('list');
+  return datastore.save({"key": key, "data": list})
+  .then(() => {return key})
+  // get the key back from the first save, use it in the self link and resave
+  .then ( (result) => {
+
+
+    console.log("in postlist, here list");
+    console.log(list);
+
+    list.self = (BASEURL + "/lists/" + key.id);
+    list.songs = [];
+    return datastore.save({"key": key, "data": list})
+  }).then(() => {return key});
+    
+}
+
+app.post('/lists', (req, res) => {
+  var list = {"name": req.body.name};
+  
+  console.log("in post, here req");
+  console.log(req);
+  console.log("in post, here list");
+  console.log(list);
+
+  return postList(list).then(result => {
+    list.id = result.id;
+    res
+      .status(201)
+      .json(list)
+      .end();
+  }).catch( (err) => {
+    res
+      .status(500)
+      .send('500 - Unknown post playlist error')
+      .end()
+  });
+});
+
+// END Post new playlist
+//***************************************************************************
+
 
 
 // TODO rewrite to use datastore instead of buckets
