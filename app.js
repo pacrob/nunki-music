@@ -295,16 +295,12 @@ function postPlaylist(playlist) {
     
 }
 
+// 'name' needs to be sent in the body as x-www-form-urlencoded
+// format in Postman, at least. Doesn't show up if form-data, unlike songs
+
 app.post('/playlists', (req, res) => {
 
   var playlist = {"name": req.body.name};
-  
-  console.log("in post, here req.params");
-  console.log(req.params);
-  console.log("in post, here req.body");
-  console.log(req.body);
-  console.log("in post, here playlist");
-  console.log(playlist);
 
   return postPlaylist(playlist).then(result => {
     playlist.id = result.id;
@@ -495,7 +491,6 @@ function deleteSongFromPlaylist(songId, playlistId) {
 }
 // Add a song to a playlist
 app.put('/playlists/:playlistId/songs/:songId', (req, res) => {
-  //return verifyUserOwnsPlaylist(req.user.name, req.params.playlistId).then(() => {
     return isSongInPlaylist(req.params.songId, req.params.playlistId)
   .then((result) => {
     console.log("this is result of isSongInPlaylist");
@@ -523,11 +518,6 @@ app.put('/playlists/:playlistId/songs/:songId', (req, res) => {
           .status(404)
           .send({error:"404 - No playlist found with this Id"});
       }
-      else if (error.name == 'ForbiddenUserError') {
-        res
-          .status(403)
-          .send({error:"403 - User does not have access to playlist"});
-      }
       else if (error.name == 'SongAlreadyInPlaylistError') {
         res
           .status(409)
@@ -543,7 +533,6 @@ app.put('/playlists/:playlistId/songs/:songId', (req, res) => {
 
 // delete a song from a playlist
 app.delete('/playlists/:playlistId/songs/:songId', (req, res) => {
-  //return verifyUserOwnsPlaylist(req.user.name, req.params.playlistId).then(() => {
     return isSongInPlaylist(req.params.songId, req.params.playlistId)
   .then((result) => {
     console.log("this is result of isSongInPlaylist");
@@ -570,11 +559,6 @@ app.delete('/playlists/:playlistId/songs/:songId', (req, res) => {
         res
           .status(404)
           .send({error:"404 - No playlist found with this Id"});
-      }
-      else if (error.name == 'ForbiddenUserError') {
-        res
-          .status(403)
-          .send({error:"403 - User does not have access to playlist"});
       }
       else if (error.name == 'SongNotInPlaylistError') {
         res
