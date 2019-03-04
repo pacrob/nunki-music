@@ -12,11 +12,8 @@ const Multer = require('multer'); // multer is used for file uploads
 const process = require('process');
 const path = require('path');
 
-//const mp3Duration = require('mp3-duration'); // get length of mp3 in ms
 const getMP3Duration = require('get-mp3-duration'); // get length of mp3 in ms
 
-//const request = require('request');
-//const rp = require('request-promise');
 const fs = require('fs');
 const http = require('http');
 
@@ -94,11 +91,8 @@ function saveFileToBucket(bucket, newFile){
       next(err);
     });
 
-    var publicUrl = "placeholder you should not see";
     blobStream.on('finish', ()=>{
       const publicUrl = format(`https://storage.googleapis.com/${bucket.name}/${blob.name}`);
-      console.log("in finish");
-      console.log(publicUrl);
       resolve(publicUrl);
     });
 
@@ -113,8 +107,6 @@ async function makePublic(bucketName, filename) {
     .bucket(bucketName)
     .file(filename)
     .makePublic();
-
-  // console.log(`gs://${bucketName}/${filename} is now public.`);
 }
 
 /* POST method 
@@ -131,11 +123,6 @@ async function makePublic(bucketName, filename) {
 app.post('/songs', multer.fields([{ name: 'artwork', maxCount: 1},
                                   { name: 'source', maxCount: 1}]),
                                 (req, res) => {
-
-  console.log("in postsong, here body");
-  console.log(req.body);
-
-
 
   var song = {"name": req.body.name, 
               "artist": req.body.artist,
@@ -218,6 +205,9 @@ app.get('/songs/:songId', (req, res) => {
     .then((song) => {
       res
         .status(200)
+        .header("Access-Control-Allow-Origin", "*")
+        .header("Access-Control-Allow-Headers", 
+                "Origin, X-Requested-With, Content-Type, Accept")
         .json(song);
     }).catch(function(error) {
       if (error.name == 'InvalidSongIdError') {
@@ -262,6 +252,9 @@ app.get('/songs', (req, res) => {
         console.log(songs);
         res
           .status(200)
+          .header("Access-Control-Allow-Origin", "*")
+          .header("Access-Control-Allow-Headers", 
+                  "Origin, X-Requested-With, Content-Type, Accept")
           .json(songs);
     });
 });
@@ -269,6 +262,13 @@ app.get('/songs', (req, res) => {
 // END List all songs
 //***************************************************************************
 
+//***************************************************************************
+// START Delete song by id
+//***************************************************************************
+
+
+// END Delete song by id
+//***************************************************************************
 
 //***************************************************************************
 // START Post new playlist
@@ -365,6 +365,9 @@ app.get('/playlists/:playlistId', (req, res) => {
     .then((playlist) => {
       res
         .status(200)
+        .header("Access-Control-Allow-Origin", "*")
+        .header("Access-Control-Allow-Headers", 
+                "Origin, X-Requested-With, Content-Type, Accept")
         .json(playlist);
     }).catch(function(error) {
       if (error.name == 'InvalidPlaylistIdError') {
@@ -407,11 +410,55 @@ app.get('/playlists', (req, res) => {
         console.log(playlists);
         res
           .status(200)
+          .header("Access-Control-Allow-Origin", "*")
+          .header("Access-Control-Allow-Headers", 
+                  "Origin, X-Requested-With, Content-Type, Accept")
           .json(playlists);
     });
 });
 
 // END List all playlists 
+//***************************************************************************
+//***************************************************************************
+// START Delete playlist by id
+//***************************************************************************
+
+function deletePlaylist(playlistId){
+  const playlistKey = datastore.key(['playlist', parseInt(playlistId,10)]);
+  return validatePlaylist(playlistId).then((results) => {
+    return datastore.delete(playlistKey);
+  }).catch(function(error) {
+    if (error.name == 'InvalidPlaylistIdError') {
+      throw error;
+    }
+    else {
+      console.log(error);
+      throw error;
+    }
+  });
+}
+app.delete('/playlists/:playlistId', (req, res) => {
+  return deletePlaylist(req.params.playlistId)
+  .then((result) => {
+      res
+        .status(204)
+        .end();
+    }).catch(function(error) {
+      if (error.name == 'InvalidPlaylistIdError') {
+        res
+          .status(404)
+          .send({error:"404 - No playlist found with this Id"});
+      }
+      else {
+        console.log(error);
+        res
+          .status(500)
+          .send({error:"500 - Unknown Delete Playlist By Id Error"});
+      }
+    });
+});
+
+// END Delete playlist by id
 //***************************************************************************
 //***************************************************************************
 // START add and remove songs from playlists
@@ -421,9 +468,10 @@ function addSongToPlaylist(songId, playlistId, songOrder) {
   songObj = {};
 
   return validateSong(songId).then((results) => {
-    songObj.self = results[0][0].self;
+    //songObj.self = results[0][0].self;
     songObj.order = parseInt(songOrder);
     songObj.songId = songId;
+    songObj.songInfo = results[0][0];
     return validatePlaylist(playlistId);
   }).then((results) => {
     var playlistToAppendTo = results[0][0];
@@ -576,6 +624,71 @@ app.delete('/playlists/:playlistId/songs/:songId', (req, res) => {
 
 // END add and remove songs from playlists
 //***************************************************************************
+//***************************************************************************
+// START Get songs by Artist
+//***************************************************************************
+// Takes artist name as a parameter string, returns all songs with
+// that string in the artist field
+
+function getSongsByArtist(req) {
+  const results = {};
+  const query = datastore.createQuery('song').filter('artist', '=', req);
+  return datastore.runQuery(query).then ( (entities) => {
+    results.items = entities[0].map(fromDatastore);
+    return entities;
+  }).then( (entities) => {
+    results.totalSearchResults = entities[0].length;
+    console.log(entities);
+    return results;
+  });
+}
+
+app.get('/songs/artists/:artist', (req, res) => {
+  const songs = getSongsByArtist(req.params.artist)
+  .then((songs) => {
+    console.log(songs);
+    res
+      .status(200)
+      .header("Access-Control-Allow-Origin", "*")
+      .header("Access-Control-Allow-Headers", 
+              "Origin, X-Requested-With, Content-Type, Accept")
+      .json(songs);
+  });
+});
+
+//***************************************************************************
+// START Get songs by Album
+//***************************************************************************
+// Takes album name as a parameter string, returns all songs with
+// that string in the album field
+
+
+function getSongsByAlbum(req) {
+  const results = {};
+  const query = datastore.createQuery('song').filter('album', '=', req);
+  return datastore.runQuery(query).then ( (entities) => {
+    results.items = entities[0].map(fromDatastore);
+    return entities;
+  }).then( (entities) => {
+    results.totalSearchResults = entities[0].length;
+    console.log(entities);
+    return results;
+  });
+}
+
+app.get('/songs/albums/:album', (req, res) => {
+  const songs = getSongsByAlbum(req.params.album)
+  .then((songs) => {
+    console.log(songs);
+    res
+      .status(200)
+      .header("Access-Control-Allow-Origin", "*")
+      .header("Access-Control-Allow-Headers", 
+              "Origin, X-Requested-With, Content-Type, Accept")
+      .json(songs);
+  });
+});
+
 //----------------Other Stuff---------------//
 
 app.get('/', (req, res, next) => {
@@ -596,115 +709,4 @@ app.listen(process.env.PORT || 8080, () => {
   console.log(`App listening on port ${PORT}`);
   console.log('Press Ctrl+C to quit.');
 });
-
-
-
-
-
-//----------------Legacy---------------//
-
-// This is the sample that can stream directly from bucket to browser
-// Don't think we need it, but keeping just in case
-
-app.get('/test2', (req, res) => {
-  var file = bucket.file('tones.mp3');
-
-  console.log('here1');
-
-  res.set('content-type', 'audio/mp3');
-  res.set('accept-ranges', 'bytes');
-
-  file.createReadStream()
-    .on('error', function(err) {})
-    .on('response', function(response) {
-        })
-    .on('end', function() {
-        })
-    .pipe(res);
-
-  
-});
-
-
-
-
-// The following are used to interact direction with buckets
-// Not used in current model, but keeping just in case
-
-
-/*
-// Original for posting a file directly to a Bucket
-// Process the file upload and upload to Google Cloud Storage.
-app.post('/upload', multer.single('file'), (req, res, next) => {
-  if (!req.file) {
-    res.status(400).send('No file uploaded.');
-    return;
-  }
-
-  // Create a new blob in the bucket and upload the file data.
-  const blob = bucket.file(req.file.originalname);
-  const blobStream = blob.createWriteStream({
-    resumable: false
-  });
-
-  blobStream.on('error', (err) => {
-    next(err);
-  });
-
-  blobStream.on('finish', () => {
-    // The public URL can be used to directly access the file via HTTP.
-    const publicUrl = format(`https://storage.googleapis.com/${bucket.name}/${blob.name}`);
-    res.status(200).send(publicUrl);
-  });
-
-  blobStream.end(req.file.buffer);
-});
-
-*/
-//***************************************************************************
-// START List all songs in a Bucket
-//***************************************************************************
-// Helper function
-// Takes a bucket name
-// Returns json of all files in that bucket
-
-/*
-
-
-async function listFiles(bucketName) {
-
-  // Lists files in the bucket
-  const [files] = await storage.bucket(bucketName).getFiles();
-
-//  console.log('Files:');
-//  files.forEach(file => {
-//    console.log(file.name);
-//  });
-  return files
-}
-
-// get a list of songs on the server
-// uses const global name of bucketName for now
-
-app.get('/songs/', (req, res) => {
-  const songs = listFiles(bucketName)
-    .then((songs) => {
-      //console.log(songs)
-      res
-        .status(200)
-        .json(songs);
-    }).catch(function(error) {
-      console.log(error);
-      res
-        .status(500)
-        .send({error:"500 - Unknown Get Songs Error"});
-    });
-});
-
-
-*/
-
-// END List Songs
-//****************************************************************************
-
 
