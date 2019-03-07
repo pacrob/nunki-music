@@ -21,6 +21,7 @@
     "@google-cloud/datastore": "^3.0.1",
     "@google-cloud/storage": "^2.4.0",
     "body-parser": "^1.18.3",
+    "cors": "^2.8.5",
     "express": "^4.16.4",
     "fs": "0.0.1-security",
     "get-mp3-duration": "^1.0.0",

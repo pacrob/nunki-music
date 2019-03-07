@@ -11,6 +11,7 @@ const format = require('util').format;
 const Multer = require('multer'); // multer is used for file uploads
 const process = require('process');
 const path = require('path');
+const cors = require('cors');
 
 const getMP3Duration = require('get-mp3-duration'); // get length of mp3 in ms
 
@@ -56,6 +57,11 @@ const songBucket = storage.bucket(songBucketName);
 // the base url for the server
 const BASEURL = "https://nunki-music.appspot.com";
 
+// needed for preflight check
+app.options('/playlists', cors());
+app.options('/playlists/:playlistId', cors());
+app.options('/songs', cors());
+app.options('/songs/:songId', cors());
 
 
 //***************************************************************************
@@ -129,6 +135,7 @@ app.post('/songs', multer.fields([{ name: 'artwork', maxCount: 1},
               "order": parseInt(req.body.order),
               "album": req.body.album};
 
+                                  
   song.duration = getMP3Duration(req.files.source[0].buffer);
     
   return saveFileToBucket(songBucket, req.files.source[0]).then((url)=>{
@@ -149,11 +156,18 @@ app.post('/songs', multer.fields([{ name: 'artwork', maxCount: 1},
     song.id = result.id;
     res
       .status(201)
+      .header("Access-Control-Allow-Origin", "*")
+      .header("Access-Control-Allow-Headers", 
+              "Origin, X-Requested-With, Content-Type, Accept")
       .json(song)
       .end();
   }).catch( (err) => {
+    console.log("post Song error caught");
     res
       .status(500)
+      .header("Access-Control-Allow-Origin", "*")
+      .header("Access-Control-Allow-Headers", 
+              "Origin, X-Requested-With, Content-Type, Accept")
       .send('500 - Unknown Post Song Error')
       .end()
   });
@@ -285,8 +299,6 @@ function postPlaylist(playlist) {
   .then ( (result) => {
 
 
-    console.log("in postPlaylist, here playlist");
-    console.log(playlist);
 
     playlist.self = (BASEURL + "/playlists/" + key.id);
     playlist.songs = [];
@@ -301,16 +313,23 @@ function postPlaylist(playlist) {
 app.post('/playlists', (req, res) => {
 
   var playlist = {"name": req.body.name};
+  console.log("post list hit, name is " + req.body.name);
 
   return postPlaylist(playlist).then(result => {
     playlist.id = result.id;
     res
       .status(201)
+      .header("Access-Control-Allow-Origin", "*")
+      .header("Access-Control-Allow-Headers", 
+              "Origin, X-Requested-With, Content-Type, Accept")
       .json(playlist)
       .end();
   }).catch( (err) => {
     res
       .status(500)
+      .header("Access-Control-Allow-Origin", "*")
+      .header("Access-Control-Allow-Headers", 
+              "Origin, X-Requested-With, Content-Type, Accept")
       .send('500 - Unknown post playlist error')
       .end()
   });
@@ -399,7 +418,7 @@ function getPlaylists(req) {
     return entities;
   }).then( (entities) => {
     results.totalSearchResults = entities[0].length;
-    console.log(entities);
+    //console.log(entities);
     return results;
   });
 }
@@ -407,7 +426,7 @@ function getPlaylists(req) {
 app.get('/playlists', (req, res) => {
   const playlists = getPlaylists(req)
     .then((playlists) => {
-        console.log(playlists);
+        //console.log(playlists);
         res
           .status(200)
           .header("Access-Control-Allow-Origin", "*")
@@ -442,6 +461,9 @@ app.delete('/playlists/:playlistId', (req, res) => {
   .then((result) => {
       res
         .status(204)
+        .header("Access-Control-Allow-Origin", "*")
+        .header("Access-Control-Allow-Headers", 
+                "Origin, X-Requested-With, Content-Type, Accept")
         .end();
     }).catch(function(error) {
       if (error.name == 'InvalidPlaylistIdError') {
@@ -691,6 +713,8 @@ app.get('/songs/albums/:album', (req, res) => {
 
 //----------------Other Stuff---------------//
 
+
+
 app.get('/', (req, res, next) => {
   console.log("the app is running");
   res.send("Nunki Music Server is up");
@@ -698,8 +722,11 @@ app.get('/', (req, res, next) => {
 
 
 app.use(function(req, res){
-  res.status(404);
-  res.send('404 - Not Found')
+  res.status(404)
+  .header("Access-Control-Allow-Origin", "*")
+  .header("Access-Control-Allow-Headers", 
+     "Origin, X-Requested-With, Content-Type, Accept")
+  .send('404 - Not Found')
 });
 
 
