@@ -1,4 +1,4 @@
-// Paul Robinson, Soo Lee, Michael Truong
+// Paul Robinson, Soo Lee, Michael Truong 
 // CS467 - Capstone - Winter 2019
 // Nunki Music App
 
@@ -10,13 +10,13 @@ const app = express();
 const format = require('util').format;
 const Multer = require('multer'); // multer is used for file uploads
 const process = require('process');
-const path = require('path');
+//const path = require('path');
 const cors = require('cors');
 
 const getMP3Duration = require('get-mp3-duration'); // get length of mp3 in ms
 
-const fs = require('fs');
-const http = require('http');
+//const fs = require('fs');
+//const http = require('http');
 
 app.use(bodyParser.urlencoded({
   extended: true
@@ -33,8 +33,6 @@ const multer = Multer({
     fileSize: 5 * 2048 * 2048 // no larger than 20mb, change as needed
   }
 });
-
-
 
 
 // creat a datastore client
@@ -62,6 +60,7 @@ app.options('/playlists', cors());
 app.options('/playlists/:playlistId', cors());
 app.options('/songs', cors());
 app.options('/songs/:songId', cors());
+app.options('/playlists/:playlistId/songs/:songId', cors());
 
 
 //***************************************************************************
@@ -576,26 +575,41 @@ app.put('/playlists/:playlistId/songs/:songId', (req, res) => {
   }).then(() => {
       res
         .status(200)
+        .header("Access-Control-Allow-Origin", "*")
+        .header("Access-Control-Allow-Headers", 
+                "Origin, X-Requested-With, Content-Type, Accept")
         .send("200 - Song added to Playlist");
     }).catch(function(error) {
       if (error.name == 'InvalidSongIdError') {
         res
           .status(404)
+          .header("Access-Control-Allow-Origin", "*")
+          .header("Access-Control-Allow-Headers", 
+                  "Origin, X-Requested-With, Content-Type, Accept")
           .send({error:"404 - No song found with this Id"});
       }
       else if (error.name == 'InvalidPlaylistIdError') {
         res
           .status(404)
+          .header("Access-Control-Allow-Origin", "*")
+          .header("Access-Control-Allow-Headers", 
+                  "Origin, X-Requested-With, Content-Type, Accept")
           .send({error:"404 - No playlist found with this Id"});
       }
       else if (error.name == 'SongAlreadyInPlaylistError') {
         res
           .status(409)
+          .header("Access-Control-Allow-Origin", "*")
+          .header("Access-Control-Allow-Headers", 
+                  "Origin, X-Requested-With, Content-Type, Accept")
           .send({error:"409 - Song already in playlist"});
       }
       else {
         res
           .status(500)
+          .header("Access-Control-Allow-Origin", "*")
+          .header("Access-Control-Allow-Headers", 
+                  "Origin, X-Requested-With, Content-Type, Accept")
           .send({error:"500 - Unknown Add Song to Playlist Error"});
       }
     });
@@ -618,26 +632,41 @@ app.delete('/playlists/:playlistId/songs/:songId', (req, res) => {
   }).then(() => {
       res
         .status(204)
+        .header("Access-Control-Allow-Origin", "*")
+        .header("Access-Control-Allow-Headers", 
+                "Origin, X-Requested-With, Content-Type, Accept")
         .send("204- Song deleted from Playlist");
     }).catch(function(error) {
       if (error.name == 'InvalidSongIdError') {
         res
           .status(404)
+          .header("Access-Control-Allow-Origin", "*")
+          .header("Access-Control-Allow-Headers", 
+                  "Origin, X-Requested-With, Content-Type, Accept")
           .send({error:"404 - No song found with this Id"});
       }
       else if (error.name == 'InvalidPlaylistIdError') {
         res
           .status(404)
+          .header("Access-Control-Allow-Origin", "*")
+          .header("Access-Control-Allow-Headers", 
+                  "Origin, X-Requested-With, Content-Type, Accept")
           .send({error:"404 - No playlist found with this Id"});
       }
       else if (error.name == 'SongNotInPlaylistError') {
         res
           .status(404)
+          .header("Access-Control-Allow-Origin", "*")
+          .header("Access-Control-Allow-Headers", 
+                  "Origin, X-Requested-With, Content-Type, Accept")
           .send({error:"404 - Song not in playlist"});
       }
       else {
         res
           .status(500)
+          .header("Access-Control-Allow-Origin", "*")
+          .header("Access-Control-Allow-Headers", 
+                  "Origin, X-Requested-With, Content-Type, Accept")
           .send({error:"500 - Unknown Delete Song from Playlist Error"});
       }
     });
